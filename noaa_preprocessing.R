@@ -1,5 +1,3 @@
-#data <- read.csv("stormdata.bz2")
-library(plyr)
 #NOAA data preprocessing
 
 
@@ -12,7 +10,7 @@ d1$EVTYPE <- factor(d1$EVTYPE)
 
 #reclassify the levels
 event.levels <- as.character(levels(d1$EVTYPE))
-event.levels[grep("astro|count|eros|smoke|urban|ash|oth|\\?|drown", event.levels, ignore.case = TRUE)] <- "NON-EVENT"
+event.levels[grep("astro|count|eros|smoke|urban|ash|oth|\\?|drown", event.levels, ignore.case = TRUE)] <- "OTHERS"
 event.levels[grep("avalan", event.levels, ignore.case = TRUE)] <- "AVALANCHE"
 event.levels[grep("bliz|snow|wint", event.levels, ignore.case = TRUE)] <- "BLIZZARD"
 event.levels[grep("frost|freez|cold|glaz|ice|icy|low", event.levels, ignore.case = TRUE)] <- "COLD/FROST"
@@ -37,13 +35,22 @@ d1$EVTYPE <- factor(d1$EVTYPE)
 
 #sum up fatalities and injuries
 
-total.fatalities <- tapply(d1$FATALITIES, d1$EVTYPE, sum)
-total.injuries <- tapply(d1$INJURIES, d1$EVTYPE, sum)
-total.fatalities <- total.fatalities[order(total.fatalities, decreasing = TRUE)]
-total.injuries <- total.injuries[order(total.injuries, decreasing = TRUE)]
+sum.fatal.inj <- ddply(d1, .(EVTYPE), summarize, FATALITIES = sum(FATALITIES), INJURIES = sum(INJURIES))
+#total.fatalities <- tapply(d1$FATALITIES, d1$EVTYPE, sum)
+#total.injuries <- tapply(d1$INJURIES, d1$EVTYPE, sum)
+#total.fatalities <- total.fatalities[order(total.fatalities, decreasing = TRUE)]
+#total.injuries <- total.injuries[order(total.injuries, decreasing = TRUE)]
+top.ftl <- head(order(sum.fatal.inj$FATALITIES, decreasing=TRUE), 10)
+top.inj <- head(order(sum.fatal.inj$INJURIES, decreasing=TRUE), 10)
 
+#fatality.injury.table <- sum.fatalities.injuries[top,]
 
+#xthh <- xtable(head(worstHarm),  caption="Top 5 Deadliest or Most Injurious Weather Events")
+table1 <- sum.fatalities.injuries[top.fatality,]
+table2 <- sum.fatalities.injuries[top.inj,]
 
+table.sum <- data.frame(Fatal_Events = sum.fatal.inj$EVTYPE [top.ftl], Total_Fatalities = sum.fatal.inj$FATALITIES[top.ftl],
+                        Injurious_Events = sum.fatal.inj$EVTYPE[top.inj], Total_Injuries = sum.fatal.inj$INJURIES[top.inj])
 
 #create subset for economic impact
 d2 <- data.frame(EVTYPE = data$EVTYPE, PROPDMG = data$PROPDMG, PROPDMGEXP = data$PROPDMGEXP, CROPDMG = data$CROPDMG, CROPDMGEXP = data$PROPDMGEXP)
