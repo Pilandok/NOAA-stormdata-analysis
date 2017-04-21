@@ -103,8 +103,9 @@ d2$CROPDMGEXP <- factor(d2$CROPDMGEXP)
 d2$TOTALDMG <- d2$PROPDMG*10^as.numeric(as.character(d2$PROPDMGEXP)) + d2$CROPDMG*10^as.numeric(as.character(d2$CROPDMGEXP))
 d2 <- d2[!is.na(d2$TOTALDMG),]
 
-total.damage <- tapply(d2$TOTALDMG, d2$EVTYPE, sum)
-total.damage <- total.damage[order(total.damage, decreasing = TRUE)]
+econ.cost <- ddply(d2, .(EVTYPE), summarize, TotalCost = sum(TOTALDMG))
+#total.damage <- tapply(d2$TOTALDMG, d2$EVTYPE, sum)
+#total.damage <- total.damage[order(total.damage, decreasing = TRUE)]
 
 #d2$econ.cost <- (d2$PROPDMG)
 
