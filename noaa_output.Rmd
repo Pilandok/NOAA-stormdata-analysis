@@ -9,27 +9,35 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+##Synopsis
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Severe weather events impact everyone, both in terms of financial loss and in terms of the risk of death or injury.   And as the frequency of severe weather phenomenan is increasing, it is important that we realize the true costs of such events and help us in coming up with a well informed policy in mitigating the impact of such events.  The National Oceanic and Atmospheric Agency has made the data for this publicly available.  The researcher, by cleaning and processing the data, wishes to make the data more digestible by presenting it in the form of tables and graphs.  It is found out that tornadoes cause the most in terms of lives and injuries, followed by excessive heat.   Hurricanes cause the most in terms of economic loss, followed a distant second by flooding.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+#Data Processing
+
+The original data was loaded from [NOAA data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2))
 
 ```{r}
 
-
-
-data <- read.csv("stormdata.bz2")
+#get the data
+if(!file.exists("stormdata.bz2")){download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", "stormdata.bz2")}
+data <- read.csv("stormdata.bz2", stringsAsFactors=FALSE)
 library(plyr)
 library(ggplot2)
-library(xtable)
+library(knitr)
+```
 
+The original data has over 900 event type levels.  Simply creating a subset for the ones that result in fatalities and injuries narrows it down to 220 event types.  The [NOAA Storm data documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) recognizes only 48 events.  Not all of those 48 resulted in injuries or death and the researcher chose to narrow it down some more as some are very much similar to others.  No distinction is made between heat and extreme heat for example.
+
+```{r}
+
+#create subset for events that involved fatalities and injuries
 d1 <- data.frame(EVTYPE=data$EVTYPE, FATALITIES=data$FATALITIES, INJURIES=data$INJURIES)
-#remove events that did not lead to fatalities or injuries
+
 d1 <- d1[d1$FATALITIES > 0 | d1$INJURIES > 0,]
 d1$EVTYPE <- factor(d1$EVTYPE)
 
-#reclassify the levels
+#clean up the classification
 event.levels <- as.character(levels(d1$EVTYPE))
 event.levels[grep("astro|count|eros|smoke|urban|ash|oth|\\?|drown", event.levels, ignore.case = TRUE)] <- "OTHERS"
 event.levels[grep("avalan", event.levels, ignore.case = TRUE)] <- "AVALANCHE"
@@ -37,11 +45,11 @@ event.levels[grep("bliz|snow|wint", event.levels, ignore.case = TRUE)] <- "BLIZZ
 event.levels[grep("frost|freez|cold|glaz|ice|icy|low", event.levels, ignore.case = TRUE)] <- "COLD/FROST"
 event.levels[grep("land|mud|rock", event.levels, ignore.case = TRUE)] <- "DEBRIS FLOW"
 event.levels[grep("drought", event.levels, ignore.case = TRUE)] <- "DROUGHT"
-event.levels[grep("fire|heat|warm|hyper", event.levels, ignore.case = TRUE)] <- "EXCESSIVE HEAT"
-event.levels[grep("rain|wet|precip|show|heavy mix", event.levels, ignore.case = TRUE)] <- "EXCESSIVE/HEAVY RAIN"
+event.levels[grep("fire|heat|warm|hyper", event.levels, ignore.case = TRUE)] <- "EXTREME HEAT"
+event.levels[grep("rain|wet|precip|show|heavy mix", event.levels, ignore.case = TRUE)] <- "EXCESSIVE RAIN"
 event.levels[grep("flood|dam|risi", event.levels, ignore.case = TRUE)] <- "FLOOD"
 event.levels[grep("fog", event.levels, ignore.case = TRUE)] <- "HEAVY FOG"
-event.levels[grep("hail|sleet", event.levels, ignore.case = TRUE)] <- "HAIL"
+event.levels[grep("hail|sleet", event.levels, ignore.case = TRUE)] <- "SLEET/HAIL"
 event.levels[grep("surf|swell|rip|tide|surge|high water|wave", event.levels, ignore.case = TRUE)] <- "HIGH SURF/SWELL"
 event.levels[grep("dust|wind|burst|turb|lignt|gust", event.levels, ignore.case = TRUE)] <- "HIGH WIND"
 event.levels[grep("hurr|typh|depr", event.levels, ignore.case = TRUE)] <- "HURRICANE"
@@ -52,20 +60,25 @@ event.levels[grep(("torn|spout|funn"), event.levels, ignore.case = TRUE)] <- "TO
 
 levels(d1$EVTYPE) <- as.factor(event.levels)
 d1$EVTYPE <- factor(d1$EVTYPE)
+```
+The data is summarized.
 
-
-#sum up fatalities and injuries
+```{r}
+#sum up fatalities and injuries by event type
 
 sum.fatal.inj <- ddply(d1, .(EVTYPE), summarize, FATALITIES = sum(FATALITIES), INJURIES = sum(INJURIES))
-top.ftl <- head(order(sum.fatal.inj$FATALITIES, decreasing=TRUE), 10)
-top.inj <- head(order(sum.fatal.inj$INJURIES, decreasing=TRUE), 10)
+top.ftl <- head(order(sum.fatal.inj$FATALITIES, decreasing=TRUE), 10) #reorder for top fatalities
+top.inj <- head(order(sum.fatal.inj$INJURIES, decreasing=TRUE), 10)   #reorder for top injuries
 
+#create the final table for top fatalities and injuries
 table.sum <- data.frame(Fatal_Events = sum.fatal.inj$EVTYPE [top.ftl], Total_Fatalities = sum.fatal.inj$FATALITIES[top.ftl],
                         Injurious_Events = sum.fatal.inj$EVTYPE[top.inj], Total_Injuries = sum.fatal.inj$INJURIES[top.inj])
 
-impact_table <- xtable(table.sum,  caption="Top 6 Deadliest or Most Injurious Weather Events")
+```
 
-print(impact_table, type= "html")
+Another subset is created for events that resulted in economic impact
+
+```{R}
 
 #create subset for economic impact
 d2 <- data.frame(EVTYPE = data$EVTYPE, PROPDMG = data$PROPDMG, PROPDMGEXP = data$PROPDMGEXP, CROPDMG = data$CROPDMG, CROPDMGEXP = data$PROPDMGEXP)
@@ -73,7 +86,13 @@ d2 <- data.frame(EVTYPE = data$EVTYPE, PROPDMG = data$PROPDMG, PROPDMGEXP = data
 d2 <- d2[d2$PROPDMG > 0 | d2$CROPDMG > 0,]
 d2$EVTYPE <- factor(d2$EVTYPE)
 
-#reclassify the levels
+```
+
+The event classification is cleaned up as before.
+
+```{R}
+
+#clean up the clasification
 event.levels <- as.character(levels(d2$EVTYPE))
 event.levels[grep("astro|count|eros|smoke|urban|ash|oth|\\?|drown", event.levels, ignore.case = TRUE)] <- "OTHERS"
 event.levels[grep("avalan", event.levels, ignore.case = TRUE)] <- "AVALANCHE"
@@ -94,11 +113,16 @@ event.levels[grep("high seas|rough seas|heavy seas", event.levels, ignore.case =
 event.levels[grep(("thund|tstm|storm"), event.levels, ignore.case = TRUE)] <- "THUNDERSTORM"
 event.levels[grep(("torn|spout|funn"), event.levels, ignore.case = TRUE)] <- "TORNADO"
 
-
 levels(d2$EVTYPE) <- as.factor(event.levels)
 d2$EVTYPE <- factor(d2$EVTYPE)
 
+```
 
+The numerical values are converted to usable form and summed up.
+
+```{r}
+
+#transform units into decimal places, h is assumed to be equivalent to k
 prp.dmg.lvl <- as.character(levels(d2$PROPDMGEXP))
 crp.dmg.lvl <- as.character(levels(d2$CROPDMGEXP))
 prp.dmg.lvl[grep(("b"), prp.dmg.lvl, ignore.case = TRUE)] <- "9"
@@ -114,26 +138,42 @@ levels(d2$CROPDMGEXP) <- as.factor(crp.dmg.lvl)
 d2$CROPDMGEXP <- factor(d2$CROPDMGEXP)
 
 
-#sum up the damage
+#convert to actual numbers
 d2$TOTALDMG <- d2$PROPDMG*10^as.numeric(as.character(d2$PROPDMGEXP)) + d2$CROPDMG*10^as.numeric(as.character(d2$CROPDMGEXP))
 d2 <- d2[!is.na(d2$TOTALDMG),]
-
+#sum up the damage by event type
 econ.cost <- ddply(d2, .(EVTYPE), summarize, TotalCost = sum(TOTALDMG))
 econ.cost <- arrange(econ.cost, desc(TotalCost))
+
+```
+
+##Results
+
+The sum of fatalities and injuries, broken down by event type, in this table.  Only the top ten is presented.  The deadliness of tornadoes comes as no surprise.  The impact of extreme heat, however, is unexpected.
+
+```{r}
+
+kable(table.sum, type = "html", align = 'l',caption="Top 10 Most Fatal or Injurious Weather Events")
+
+```
+
+Below is a barchart of the economic impact by event type.  It is clear that hurricanes lead by a wide margin, followed by floods.  Only the top 7 is presented.
+
+```{r}
+
 plot1 <- head(econ.cost, 7)
-plot2 <- econ.cost[3:9,]
 ggplot(data=plot1, aes(x=EVTYPE, y=TotalCost/10e9)) + geom_bar(stat="identity") + xlab("Event Types") + ylab("Cost in Billions of Dollars") + ggtitle("Cost of Weather Events, 1950-2011")
+
+```
+
+
+As it is difficult to determine the impact of the various events relative to each other, another barchart is made without the top 2.
+
+```{r}
+
+plot2 <- econ.cost[3:9,]
 ggplot(data=plot2, aes(x=EVTYPE, y=TotalCost/10e9)) + geom_bar(stat="identity") + xlab("Event Types") + ylab("Cost in Billions of Dollars") + ggtitle("Cost of Weather Events, 1950-2011")
 
 
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
